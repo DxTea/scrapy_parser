@@ -57,17 +57,13 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 110,
 }
 
-# Ниже указываем список прокси-серверов, которые будем использовать
 ROTATING_PROXY_LIST = [
     'http://172.67.176.216:80',
     'http://45.14.174.245:80',
     'http://20.111.54.16:8123',
     'http://103.36.25.4:80',
-    # Добавьте остальные прокси-серверы
 ]
 
-# Если вы хотите использовать HTTPS прокси, добавьте их в отдельный список
-# ROTATING_PROXY_LIST_PATH = 'path/to/proxies.txt'  # Путь к файлу со списком прокси
 ROTATING_PROXY_BAN_POLICY = 'scrapy_proxies.ban_policy.BanPolicy'
 ROTATING_PROXY_PAGE_RETRY_TIMES = 5  # Количество попыток повторить запрос при неудаче
 # Enable or disable extensions
