@@ -216,8 +216,6 @@ class AptekaSpider(scrapy.Spider, ABC):
 
     def get_description(self, response):
         description = ''.join(response.xpath("//div[@class='ui-collapsed-content__content']//text()").getall())
-        # '/html/body/div[1]/div/div/div[3]/main/section[1]/div/div[3]/section[1]/div/div[1]/div/p[2]'
-        # '/html/body/div[1]/div/div/div[3]/main/section[1]/div/div[3]/section/div/div[1]/div/h3[3]'
         return description
 
 
