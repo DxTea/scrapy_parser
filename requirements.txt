@@ -1,0 +1,9 @@
+pip==23.2.1
+attrs~=23.1.0
+cryptography~=41.0.2
+setuptools==68.0.0
+packaging~=23.1
+Scrapy~=2.9.0
+itemloaders~=1.1.0
+tqdm~=4.65.0
+itemadapter~=0.8.0
