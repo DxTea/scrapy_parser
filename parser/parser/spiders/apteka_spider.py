@@ -16,9 +16,10 @@ class AptekaProductItem(scrapy.Item):
     RPC = scrapy.Field(output_processor=TakeFirst())  # уникальный идентификатор продукта.
     url = scrapy.Field(output_processor=TakeFirst())  # URL-адрес продукта.
     title = scrapy.Field(output_processor=TakeFirst())  # заголовок продукта.
-    marketing_tags = scrapy.Field(input_processor=MapCompose(str),
+    marketing_tags = scrapy.Field(input_processor=MapCompose(str.strip),
                                   output_processor=TakeFirst())  # маркетинговые теги продукта.
-    brand = scrapy.Field(output_processor=TakeFirst())  # бренд продукта.
+    brand = scrapy.Field(input_processor=MapCompose(str.strip),
+                         output_processor=TakeFirst())  # бренд продукта.
     section = scrapy.Field()  # раздел, к которому принадлежит продукт.
     current_price = scrapy.Field(output_processor=TakeFirst())  # текущая цена продукта.
     original_price = scrapy.Field(output_processor=TakeFirst())  # оригинальная цена продукта.
@@ -131,7 +132,7 @@ class AptekaSpider(scrapy.Spider, ABC):
             return original_price, sale_price
         if self.in_stock_on_site(response) and self.is_sale(response):
             original_price = response.xpath(
-                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[2]/text()')\
+                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[2]/text()') \
                 .get()
             if original_price is None:
                 original_price = 0.0
@@ -139,7 +140,7 @@ class AptekaSpider(scrapy.Spider, ABC):
                 original_price = original_price.strip().replace(
                     " ", "").replace("₽", "")
             sale_price = response.xpath(
-                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[1]/text()')\
+                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[1]/text()') \
                 .get()
             if sale_price is None:
                 sale_price = 0.0
@@ -244,7 +245,7 @@ class AptekaSpider(scrapy.Spider, ABC):
     @staticmethod
     def get_description(response):
         description = ''.join(response.xpath("//div[@class='ui-collapsed-content__content']//text()").getall())
-        return description
+        return description.strip()
 
 
 # Запустим spider и сохраним результат в JSON файл
