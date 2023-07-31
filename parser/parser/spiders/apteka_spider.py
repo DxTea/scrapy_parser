@@ -60,14 +60,17 @@ class AptekaSpider(scrapy.Spider, ABC):
         'medikamenty-i-bady/allergiya/allergiya-vzroslym',
     ]
 
+    COOKIES={
+            'city': '92',  # Томск
+            # ...
+        }
     # Отправка запросов на веб-страницы для начала парсинга
     def start_requests(self):
         for category in self.CATEGORIES:
             url = f'https://apteka-ot-sklada.ru/catalog/{category}'
             headers = self.get_random_headers()
-            yield scrapy.Request(url, headers=headers, callback=self.parse_category,
-                                 meta={'category': category,'globalcityid': '92', 'globalcityname': 'Томск',
-                                       'location': 'Томская область Томск'})
+            yield scrapy.Request(url, headers=headers,cookies=self.COOKIES, callback=self.parse_category,
+                                 meta={'category': category})
 
     # Функция для возврата случайного User-Agent и Referer
     def get_random_headers(self):
