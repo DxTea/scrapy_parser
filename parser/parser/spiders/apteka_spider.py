@@ -16,7 +16,7 @@ class AptekaProductItem(scrapy.Item):
     RPC = scrapy.Field(output_processor=TakeFirst())  # уникальный идентификатор продукта.
     url = scrapy.Field(output_processor=TakeFirst())  # URL-адрес продукта.
     title = scrapy.Field(output_processor=TakeFirst())  # заголовок продукта.
-    marketing_tags = scrapy.Field(input_processor=MapCompose(str.strip),
+    marketing_tags = scrapy.Field(input_processor=MapCompose(str),
                                   output_processor=TakeFirst())  # маркетинговые теги продукта.
     brand = scrapy.Field(output_processor=TakeFirst())  # бренд продукта.
     section = scrapy.Field()  # раздел, к которому принадлежит продукт.
@@ -60,16 +60,17 @@ class AptekaSpider(scrapy.Spider, ABC):
         'medikamenty-i-bady/allergiya/allergiya-vzroslym',
     ]
 
-    COOKIES={
-            'city': '92',  # Томск
-            # ...
-        }
+    COOKIES = {
+        'city': '92',  # Томск
+        # ...
+    }
+
     # Отправка запросов на веб-страницы для начала парсинга
     def start_requests(self):
         for category in self.CATEGORIES:
             url = f'https://apteka-ot-sklada.ru/catalog/{category}'
             headers = self.get_random_headers()
-            yield scrapy.Request(url, headers=headers,cookies=self.COOKIES, callback=self.parse_category,
+            yield scrapy.Request(url, headers=headers, cookies=self.COOKIES, callback=self.parse_category,
                                  meta={'category': category})
 
     # Функция для возврата случайного User-Agent и Referer
@@ -91,15 +92,21 @@ class AptekaSpider(scrapy.Spider, ABC):
             next_page_url = urljoin(base_url, next_page)
             pages += 1
             yield scrapy.Request(next_page_url, self.parse_category,
-                                 meta={'category': category,'globalcityid': '92', 'globalcityname': 'Томск',
+                                 meta={'category': category, 'globalcityid': '92', 'globalcityname': 'Томск',
                                        'location': 'Томская область Томск'})
-        with tqdm(total=len(product_links), unit=' products', desc=f'Category {category} Page № {pages}') as progress_bar:
+        with tqdm(total=len(product_links), unit=' products',
+                  desc=f'Category {category} Page № {pages}') as progress_bar:
             for link in product_links:
                 full_url = urljoin(base_url, link)
                 yield scrapy.Request(full_url, self.parse_product,
-                                     meta={'category': category,'globalcityid': '92', 'globalcityname': 'Томск',
+                                     meta={'category': category, 'globalcityid': '92', 'globalcityname': 'Томск',
                                            'location': 'Томская область Томск'})
                 progress_bar.update(1)
+
+    # Отсутствие товара
+    @staticmethod
+    def not_in_stock(response):
+        return bool(response.xpath('//span[contains(text(), "Сообщить о поступлении")]'))
 
     # Проверка наличия товара в аптеках
     @staticmethod
@@ -120,26 +127,43 @@ class AptekaSpider(scrapy.Spider, ABC):
     def calculate_price(self, response):
         original_price = 0.0
         sale_price = 0.0
-
+        if self.not_in_stock(response):
+            return original_price, sale_price
         if self.in_stock_on_site(response) and self.is_sale(response):
-            original_price = float(response.xpath(
-                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[2]/text()')
-                                   .get().strip().replace(" ", "").replace("₽", ""))
-            sale_price = float(response.xpath(
-                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[1]/text()')
-                               .get().strip().replace(" ", "").replace("₽", ""))
-        elif self.in_stock_on_site(response) and not self.is_sale(response):
+            original_price = response.xpath(
+                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[2]/text()')\
+                .get()
+            if original_price is None:
+                original_price = 0.0
+            else:
+                original_price = original_price.strip().replace(
+                    " ", "").replace("₽", "")
+            sale_price = response.xpath(
+                '/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span[1]/text()')\
+                .get()
+            if sale_price is None:
+                sale_price = 0.0
+            else:
+                sale_price = sale_price.strip().replace(
+                    " ", "").replace("₽", "")
+            return float(original_price), float(sale_price)
+        if self.in_stock_on_site(response) and not self.is_sale(response):
             original_price = float(response.xpath(
                 "/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/div[1]/div[2]/span/text()")
                                    .get().strip().replace(" ", "").replace("₽", ""))
             sale_price = original_price
-        elif not self.in_stock_on_site(response) and self.in_stock_in_pharmacy(response):
-            original_price = float(response.xpath(
-                "/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/ul/li/a/span/span/text()")
-                                   .get().strip().replace(" ", "").replace("₽", "").replace("от", ""))
+            return float(original_price), float(sale_price)
+        if not self.in_stock_on_site(response) and self.in_stock_in_pharmacy(response):
+            original_price = response.xpath(
+                "/html/body/div[1]/div/div/div[3]/main/section[1]/div/aside/div/div[1]/ul/li/a/span/span/text()").get()
+            if original_price is None:
+                original_price = 0.0
+            else:
+                original_price = original_price.strip().replace(" ", "").replace("₽", "").replace("от", "")
             sale_price = original_price
+            return float(original_price), float(sale_price)
 
-        return original_price, sale_price
+        return float(original_price), float(sale_price)
 
     # Расчет процента скидки
     @staticmethod
@@ -217,7 +241,8 @@ class AptekaSpider(scrapy.Spider, ABC):
                     f.write(f"Error message: {str(e)}\n")
                     f.write("\n")
 
-    def get_description(self, response):
+    @staticmethod
+    def get_description(response):
         description = ''.join(response.xpath("//div[@class='ui-collapsed-content__content']//text()").getall())
         return description
 
